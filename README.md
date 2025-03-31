@@ -10,24 +10,51 @@ This is a minimal webserver in C that implements self-sandboxing mechanisms. For
 - **Privilege Dropping**: Permanently drops privileges and capabilities
 - **New Process Per Connection**: Creates an isolated process for each connection
 
+## Code Structure
+
+The codebase is organized into modular components:
+
+- **sandcastle.c/h**: Main program and entry point
+- **config.c/h**: Configuration management
+- **http_server.c/h**: HTTP server implementation
+- **sandbox.c/h**: Security sandboxing functionality
+- **utils.c/h**: Utility functions
+
 ## Requirements
 
 - Linux system with kernel ≥ 3.8 (for user namespaces)
 - Root privileges to run the server (required for namespace creation)
 - GCC and Make for compilation
+- libcap development headers (`libcap-dev` or equivalent package)
 
 ## Compilation
 
 Compile the webserver with:
 
 ```bash
-gcc -o sandcastle sandcastle.c -lcap
+make
+```
+
+The compiled binary will be created in the `build` directory as `build/sandcastle`.
+
+To install the binary to your system:
+
+```bash
+sudo make install
+```
+
+This will install the sandcastle binary to `/usr/local/bin/`.
+
+To clean the build files:
+
+```bash
+make clean
 ```
 
 ## Usage
 
 ```bash
-sudo ./sandcastle [content_directory] [port]
+sudo sandcastle [content_directory] [port]
 ```
 
 Where:
@@ -41,7 +68,7 @@ mkdir -p /var/www/html
 echo '<html><body><h1>Hello, World!</h1></body></html>' > /var/www/html/index.html
 
 # Run the server
-sudo ./sandcastle /var/www/html 8080
+sudo sandcastle /var/www/html 8080
 ```
 
 ## Security Notes
