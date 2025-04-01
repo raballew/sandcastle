@@ -50,11 +50,15 @@ int config_parse_args(SandcastleConfig *config, int argc, char *argv[]) {
     static struct option long_options[] = {
         {"port", required_argument, 0, 'p'},
         {"dir", required_argument, 0, 'd'},
-        {"help", no_argument, 0, 'h'}
+        {"help", no_argument, 0, 'h'},
+        {0, 0, 0, 0}
     };
     
     // Reset getopt
     optind = 0;
+    
+    // Suppress getopt error messages
+    opterr = 0;
     
     // Parse command line arguments using getopt
     while ((opt = getopt_long(argc, argv, "p:d:h", long_options, NULL)) != -1) {
