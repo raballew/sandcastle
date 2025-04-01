@@ -5,7 +5,7 @@
 #include "config.h"
 
 #define DEFAULT_PORT 8080
-#define DEFAULT_CONTENT_DIR "/content"
+#define DEFAULT_CONTENT_DIR "/var/www/html"
 #define DEFAULT_BUFFER_SIZE 8192
 #define DEFAULT_MAX_PATH 1024
 
