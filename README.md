@@ -16,7 +16,7 @@ The codebase is organized into modular components:
 
 - **sandcastle.c/h**: Main program and entry point
 - **config.c/h**: Configuration management
-- **http_server.c/h**: HTTP server implementation
+- **server.c/h**: HTTP server implementation
 - **sandbox.c/h**: Security sandboxing functionality
 - **utils.c/h**: Utility functions
 

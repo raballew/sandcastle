@@ -6,7 +6,7 @@
 
 #include "sandcastle.h"
 #include "config.h"
-#include "http_server.h"
+#include "server.h"
 
 /**
  * Main entry point
@@ -26,7 +26,6 @@ int sandcastle_main(int argc, char *argv[]) {
     
     // Parse command line arguments
     if (config_parse_args(&config, argc, argv) != 0) {
-        config_print_usage();
         return EXIT_FAILURE;
     }
     
@@ -41,13 +40,13 @@ int sandcastle_main(int argc, char *argv[]) {
     }
     
     // Initialize HTTP server
-    server_fd = http_server_init(&config);
+    server_fd = server_init(&config);
     if (server_fd == -1) {
         return EXIT_FAILURE;
     }
     
     // Run server main loop (doesn't return unless error)
-    if (http_server_run(server_fd, &config, real_uid, real_gid) != 0) {
+    if (server_run(server_fd, &config, real_uid, real_gid) != 0) {
         return EXIT_FAILURE;
     }
     

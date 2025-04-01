@@ -10,14 +10,20 @@
 #include <unistd.h>
 
 #include "config.h"
-#include "http_server.h"
+#include "server.h"
 #include "sandbox.h"
 #include "utils.h"
 
+// Forward declarations
+static int process_client_request(int client_fd, const SandcastleConfig *config);
+static ssize_t send_response_headers(int client_fd, int status_code, const char *status_message,
+                                 const char *content_type, const char *body, size_t body_length);
+static ssize_t send_error_response(int client_fd, int status_code, const char *status_message);
+
 /**
- * Initialize HTTP server with given configuration
+ * Initialize server with given configuration
  */
-int http_server_init(const SandcastleConfig *config) {
+int server_init(const SandcastleConfig *config) {
     int server_fd;
     struct sockaddr_in server_addr;
     
@@ -62,9 +68,9 @@ int http_server_init(const SandcastleConfig *config) {
 }
 
 /**
- * Run the HTTP server main loop
+ * Run the server main loop
  */
-int http_server_run(int server_fd, const SandcastleConfig *config, uid_t uid, gid_t gid) {
+int server_run(int server_fd, const SandcastleConfig *config, uid_t uid, gid_t gid) {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
     pid_t child_pid;
@@ -92,19 +98,14 @@ int http_server_run(int server_fd, const SandcastleConfig *config, uid_t uid, gi
             close(server_fd);
             
             // Set up sandboxing for the child process
-            if (sandbox_setup_namespaces() != 0 ||
-                sandbox_setup_user_mapping(uid, gid) != 0 ||
-                sandbox_setup_filesystem(config->content_dir) != 0 ||
-                sandbox_drop_privileges() != 0 ||
-                sandbox_apply_seccomp() != 0) {
-                
+            if (sandbox_initialize(config->content_dir, uid, gid) != 0) {
                 // Failed to set up sandbox
                 close(client_fd);
                 exit(EXIT_FAILURE);
             }
             
             // Handle the HTTP request
-            http_handle_request(client_fd, config);
+            process_client_request(client_fd, config);
 
             // We should never reach here
             exit(EXIT_FAILURE);
@@ -123,7 +124,7 @@ int http_server_run(int server_fd, const SandcastleConfig *config, uid_t uid, gi
 /**
  * Send HTTP response with status code and message
  */
-ssize_t http_send_response(int client_fd, int status_code, const char *status_message,
+static ssize_t send_response_headers(int client_fd, int status_code, const char *status_message,
                           const char *content_type, const char *body, size_t body_length) {
     char header[1024]; // Smaller fixed buffer - headers don't need to be large
     int header_len = snprintf(header, sizeof(header),
@@ -155,15 +156,15 @@ ssize_t http_send_response(int client_fd, int status_code, const char *status_me
 /**
  * Send error response with appropriate status code
  */
-ssize_t http_send_error(int client_fd, int status_code, const char *status_message) {
-    return http_send_response(client_fd, status_code, status_message, 
+static ssize_t send_error_response(int client_fd, int status_code, const char *status_message) {
+    return send_response_headers(client_fd, status_code, status_message, 
                             "text/plain", status_message, strlen(status_message));
 }
 
 /**
  * Handle a single HTTP request
  */
-int http_handle_request(int client_fd, const SandcastleConfig *config) {
+static int process_client_request(int client_fd, const SandcastleConfig *config) {
     char buffer[config->buffer_size];
     char path[config->max_path];
     
@@ -186,21 +187,21 @@ int http_handle_request(int client_fd, const SandcastleConfig *config) {
     // Parse request line
     char method[10], uri[config->max_path], version[10];
     if (sscanf(request_line, "%9s %1023s %9s", method, uri, version) != 3) {
-        http_send_error(client_fd, 400, "Bad Request");
+        send_error_response(client_fd, 400, "Bad Request");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }
     
     // Check if the request method is GET
     if (strcmp(method, "GET") != 0) {
-        http_send_error(client_fd, 405, "Method Not Allowed");
+        send_error_response(client_fd, 405, "Method Not Allowed");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }
     
     // Convert URI to file path
     if (utils_uri_to_path(uri, path, config->max_path) != 0) {
-        http_send_error(client_fd, 400, "Bad Request");
+        send_error_response(client_fd, 400, "Bad Request");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }
@@ -208,7 +209,7 @@ int http_handle_request(int client_fd, const SandcastleConfig *config) {
     // Open the requested file
     int file_fd = open(path, O_RDONLY);
     if (file_fd == -1) {
-        http_send_error(client_fd, 404, "Not Found");
+        send_error_response(client_fd, 404, "Not Found");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }
@@ -217,14 +218,14 @@ int http_handle_request(int client_fd, const SandcastleConfig *config) {
     struct stat file_stat;
     if (fstat(file_fd, &file_stat) == -1) {
         close(file_fd);
-        http_send_error(client_fd, 500, "Internal Server Error");
+        send_error_response(client_fd, 500, "Internal Server Error");
         close(client_fd);
         exit(EXIT_FAILURE);
     }
     
     // Get MIME type and send headers
     const char *mime_type = utils_get_mime_type(path);
-    http_send_response(client_fd, 200, "OK", mime_type, NULL, file_stat.st_size);
+    send_response_headers(client_fd, 200, "OK", mime_type, NULL, file_stat.st_size);
     
     // Send file content
     while ((bytes_read = read(file_fd, buffer, config->buffer_size)) > 0) {

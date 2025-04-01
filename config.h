@@ -26,9 +26,4 @@ SandcastleConfig config_init(void);
  */
 int config_parse_args(SandcastleConfig *config, int argc, char *argv[]);
 
-/**
- * Print usage information
- */
-void config_print_usage(void);
-
 #endif /* CONFIG_H */ 

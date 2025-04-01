@@ -4,9 +4,9 @@ LDFLAGS = -lcap
 
 BUILD_DIR = build
 TARGET = $(BUILD_DIR)/sandcastle
-SRC = sandcastle.c config.c http_server.c sandbox.c utils.c
+SRC = sandcastle.c config.c server.c sandbox.c utils.c
 OBJ = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRC))
-HEADERS = sandcastle.h config.h http_server.h sandbox.h utils.h
+HEADERS = sandcastle.h config.h server.h sandbox.h utils.h
 
 .PHONY: all clean install
 

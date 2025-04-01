@@ -2,7 +2,7 @@
 #define SANDCASTLE_H
 
 #include "config.h"
-#include "http_server.h"
+#include "server.h"
 #include "sandbox.h"
 #include "utils.h"
 
